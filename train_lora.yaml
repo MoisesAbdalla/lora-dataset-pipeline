@@ -1,0 +1,71 @@
+---
+# Character LoRA for Z-Image Turbo, trained with AI-Toolkit (ostris)
+# Model: "Z-Image Turbo (w/ Training Adapter)". Needs a 24 GB+ GPU (I rent one on a cloud pod).
+job: extension
+config:
+  name: "character_zimage_turbo_v1"
+  process:
+    - type: 'sd_trainer'
+      training_folder: "output"
+      device: cuda:0
+      # captions already start with the trigger; trigger_word is only added where missing
+      trigger_word: "fxcharacter"
+      network:
+        type: "lora"
+        linear: 16
+        linear_alpha: 16
+      save:
+        dtype: float16
+        save_every: 250
+        max_step_saves_to_keep: 12   # keep every checkpoint (250..3000) to pick the best one by eye
+      datasets:
+        # path where the dataset was extracted on the training pod
+        - folder_path: "/workspace/ai-toolkit/datasets/character"
+          caption_ext: "txt"
+          caption_dropout_rate: 0.05
+          shuffle_tokens: false
+          cache_latents_to_disk: true
+          resolution: [ 512, 768, 1024 ]
+      train:
+        batch_size: 1
+        steps: 3000
+        gradient_accumulation: 1
+        train_unet: true
+        train_text_encoder: false
+        gradient_checkpointing: true
+        noise_scheduler: "flowmatch"
+        timestep_type: "weighted"
+        optimizer: "adamw8bit"
+        lr: 1e-4
+        unload_text_encoder: false
+        dtype: bf16
+      model:
+        name_or_path: "Tongyi-MAI/Z-Image-Turbo"
+        arch: "zimage:turbo"
+        # adapter that "undoes" Turbo distillation during training (AI-Toolkit default)
+        assistant_lora_path: "ostris/zimage_turbo_training_adapter/zimage_turbo_training_adapter_v2.safetensors"
+        quantize: true
+        qtype: "qfloat8"
+        quantize_te: true
+        qtype_te: "qfloat8"
+        low_vram: true
+      sample:
+        sampler: "flowmatch"
+        sample_every: 250
+        width: 896
+        height: 1184
+        prompts:
+          - "[trigger], close-up portrait, wearing a white t-shirt, facing the camera, soft window light, plain gray background"
+          - "[trigger], full body shot, wearing a red raincoat, on a rooftop at night, city lights"
+          - "[trigger], waist-up shot, wearing a leather jacket, laughing, sunny street"
+          - "[trigger], sitting on a sofa, reading a book, living room, evening light"
+          - "[trigger], full body shot, riding a bicycle, suburban street, morning"
+          - "[trigger], wearing a straw hat, walking on the beach, full body shot, sunset"
+        neg: ""
+        seed: 42
+        walk_seed: true
+        guidance_scale: 1
+        sample_steps: 9
+meta:
+  name: "[name]"
+  version: '1.0'
